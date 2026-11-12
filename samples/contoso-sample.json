@@ -1,0 +1,91 @@
+{
+  "tool": "infra-discovery-kit",
+  "version": "0.1.0",
+  "run_id": "sample-0001",
+  "collected_at": "2026-11-11T18:00:00Z",
+  "collected_by": "CONTOSO\\discovery-ro",
+  "collected_from": "MGMT01",
+  "sample": true,
+  "modules": {
+    "ActiveDirectory": {
+      "status": "partial",
+      "duration_s": 14.2,
+      "errors": [
+        { "step": "dcdiag", "message": "Access is denied. (sample: run account lacked rights for dcdiag)" }
+      ],
+      "data": {
+        "forest": {
+          "name": "contoso.local",
+          "mode": "Windows2012R2Forest",
+          "mode_level": 6,
+          "schema_master": "DC01.contoso.local",
+          "naming_master": "DC01.contoso.local",
+          "domains": [ "contoso.local" ],
+          "global_catalogs": [ "DC01.contoso.local" ]
+        },
+        "domains": [
+          {
+            "name": "contoso.local",
+            "mode": "Windows2012R2Domain",
+            "mode_level": 6,
+            "pdc_emulator": "DC01.contoso.local",
+            "rid_master": "DC01.contoso.local",
+            "infrastructure_master": "DC01.contoso.local",
+            "domain_controllers": [
+              {
+                "name": "DC01.contoso.local",
+                "ip": "10.20.1.10",
+                "os": "Windows Server 2016 Datacenter",
+                "site": "Default-First-Site-Name",
+                "is_gc": true,
+                "roles": [ "SchemaRole", "NamingRole", "PdcRole", "RidRole", "InfrastructureRole" ]
+              }
+            ],
+            "trusts": []
+          }
+        ],
+        "sites": [
+          {
+            "name": "Default-First-Site-Name",
+            "subnets": [],
+            "servers": [ "DC01.contoso.local" ],
+            "site_links": [ "DEFAULTIPSITELINK" ]
+          }
+        ],
+        "accounts": {
+          "stale_days": 90,
+          "enabled_users": 212,
+          "stale_users": 37,
+          "enabled_computers": 168,
+          "stale_computers": 41,
+          "password_never_expires": 14,
+          "admincount_users": 9
+        },
+        "gpo_count": 23,
+        "time": [
+          { "dc": "DC01.contoso.local", "is_pdc": true, "source": "Local CMOS Clock" }
+        ],
+        "native": {
+          "replsummary": {
+            "command": "repadmin /replsummary",
+            "available": true,
+            "exit_code": 0,
+            "output": "Replication Summary Start Time: 2026-11-11 10:00:00\n\nBeginning data collection for replication summary, this may take awhile:\n\nSource DSA          largest delta    fails/total %%   error\n\nDestination DSA     largest delta    fails/total %%   error"
+          },
+          "dfsr_state": {
+            "command": "dfsrmig /getglobalstate",
+            "available": true,
+            "exit_code": 0,
+            "output": "DFSR migration has not yet initialized. To initialize the migration, set the global state to the desired value."
+          },
+          "dcdiag": {
+            "command": "dcdiag /q /s:DC01.contoso.local",
+            "available": false,
+            "exit_code": null,
+            "output": null
+          }
+        }
+      }
+    }
+  }
+}
