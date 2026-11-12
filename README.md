@@ -9,25 +9,25 @@ Read-only discovery for Windows infrastructure. One run collects evidence and fl
 Run this in an elevated **Windows PowerShell** on a domain controller or a domain-joined management host:
 
 ```powershell
-irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.3/install.ps1 | iex
+irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.4/install.ps1 | iex
 ```
 
 The bootstrap:
-1. Downloads the pinned v0.1.3 release zip.
+1. Downloads the pinned v0.1.4 release zip.
 2. Verifies the zip against the release's `SHA256SUMS`, and refuses to run on a mismatch.
-3. Extracts it to `%TEMP%\infra-discovery-kit-0.1.3`.
+3. Extracts it to `%TEMP%\infra-discovery-kit-0.1.4`.
 4. Runs the collection and builds the report into its `output\` folder.
 
 To download and verify without running:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.3/install.ps1))) -NoRun
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.4/install.ps1))) -NoRun
 ```
 
 ### Environments that don't allow `irm | iex`
 
-1. Download `infra-discovery-kit-0.1.3.zip` and `SHA256SUMS` from the [release page](https://github.com/vertexchaos/infra-discovery-kit/releases/tag/v0.1.3).
-2. Check the hash: `Get-FileHash .\infra-discovery-kit-0.1.3.zip -Algorithm SHA256`.
+1. Download `infra-discovery-kit-0.1.4.zip` and `SHA256SUMS` from the [release page](https://github.com/vertexchaos/infra-discovery-kit/releases/tag/v0.1.4).
+2. Check the hash: `Get-FileHash .\infra-discovery-kit-0.1.4.zip -Algorithm SHA256`.
 3. Extract the zip and run `powershell -ExecutionPolicy Bypass -File .\Invoke-Discovery.ps1 -Report`.
 
 ## Output
@@ -55,11 +55,12 @@ See [`samples/contoso-sample.html`](samples/contoso-sample.html) for a report bu
 | AD-002 | DC OS out of support, or ending within 12 months |
 | AD-003 | Domain or forest functional level below 2016 |
 | AD-004 | SYSVOL still on FRS |
-| AD-005 | PDC emulator on its local clock |
-| AD-006 | Other DCs not following the domain time hierarchy |
+| AD-005 | PDC emulator on its local clock or the Hyper-V host clock |
+| AD-006 | Other DCs not following the domain time hierarchy (incl. Hyper-V host time) |
 | AD-007 | Replication failures |
 | AD-008–010 | Stale accounts, password-never-expires, privileged sprawl |
 | AD-011 | Sites with DCs but no subnets |
+| AD-012 | `dcdiag` failed tests |
 
 Design notes: [DESIGN.md](DESIGN.md).
 

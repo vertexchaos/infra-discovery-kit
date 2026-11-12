@@ -12,6 +12,16 @@ function Get-IdkLdapCount {
     try { return $results.Count } finally { $results.Dispose() }
 }
 
+# Prefer a routable IPv4 address; .NET's DomainController.IPAddress returns whatever DNS lists first (often IPv6 link-local).
+function Get-IdkHostAddresses {
+    param([string]$HostName, [string]$Fallback)
+    $all = @()
+    try { $all = @([System.Net.Dns]::GetHostAddresses($HostName) | ForEach-Object { $_.IPAddressToString }) } catch { }
+    $v4 = @($all | Where-Object { $_ -match '^\d{1,3}(\.\d{1,3}){3}$' -and $_ -notlike '169.254.*' -and $_ -notlike '127.*' })
+    $primary = if ($v4.Count -gt 0) { $v4[0] } else { $Fallback }
+    [ordered]@{ ip = $primary; ip_all = $all }
+}
+
 function Get-IdkActiveDirectory {
     param([int]$StaleDays = 90)
 
@@ -32,9 +42,11 @@ function Get-IdkActiveDirectory {
     $data.domains = @(foreach ($d in $forest.Domains) {
         $dcs = @(foreach ($dc in $d.DomainControllers) {
             $entry = Invoke-IdkStep -Name "dc.$($dc.Name)" -Errors $errors -Script {
+                $addr = Get-IdkHostAddresses -HostName $dc.Name -Fallback $dc.IPAddress
                 [ordered]@{
                     name  = $dc.Name
-                    ip    = $dc.IPAddress
+                    ip    = $addr.ip
+                    ip_all = $addr.ip_all
                     os    = $dc.OSVersion
                     site  = $dc.SiteName
                     is_gc = $dc.IsGlobalCatalog()

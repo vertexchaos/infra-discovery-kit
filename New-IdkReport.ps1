@@ -143,9 +143,10 @@ if ($adData) {
 
     # Forest and domains
     [void]$body.Append('<section><h2>Forest and domains</h2>')
-    $forestRow = [pscustomobject]@{ name = $adData.forest.name; mode = $adData.forest.mode; schema = $adData.forest.schema_master; naming = $adData.forest.naming_master; gcs = $adData.forest.global_catalogs }
+    $forestRow = [pscustomobject]@{ name = $adData.forest.name; mode = (Get-IdkModeLabel $adData.forest.mode $adData.forest.mode_level); schema = $adData.forest.schema_master; naming = $adData.forest.naming_master; gcs = $adData.forest.global_catalogs }
     [void]$body.Append((ConvertTo-IdkTable -Rows @($forestRow) -Columns name, mode, schema, naming, gcs -Headers 'Forest', 'Functional level', 'Schema master', 'Domain naming master', 'Global catalogs'))
-    [void]$body.Append((ConvertTo-IdkTable -Rows @($adData.domains) -Columns name, mode, pdc_emulator, rid_master, infrastructure_master -Headers 'Domain', 'Functional level', 'PDC emulator', 'RID master', 'Infrastructure master'))
+    $domainRows = @($adData.domains | Select-Object name, @{ n = 'mode'; e = { Get-IdkModeLabel $_.mode $_.mode_level } }, pdc_emulator, rid_master, infrastructure_master)
+    [void]$body.Append((ConvertTo-IdkTable -Rows $domainRows -Columns name, mode, pdc_emulator, rid_master, infrastructure_master -Headers 'Domain', 'Functional level', 'PDC emulator', 'RID master', 'Infrastructure master'))
     [void]$body.Append('</section>')
 
     # DCs

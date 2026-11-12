@@ -32,6 +32,27 @@ $ids = ($f | ForEach-Object { $_.id }) -join ','
 Check "Sample yields 9 findings ($ids)" ($f.Count -eq 9)
 Check 'Sample flags single DC, FRS and PDC local clock' ($ids -match 'AD-001' -and $ids -match 'AD-004' -and $ids -match 'AD-005')
 
+# Regressions from the first real lab run (2 DCs on Hyper-V, both on VM IC time, dcdiag DFSREvent failure).
+$lab = [pscustomobject]@{
+    forest  = [pscustomobject]@{ name = 'lab.test'; mode = 'Unknown'; mode_level = 7 }
+    domains = @([pscustomobject]@{ name = 'lab.test'; mode = 'Unknown'; mode_level = 7; pdc_emulator = 'DC1.lab.test'
+                 domain_controllers = @([pscustomobject]@{ name = 'DC1.lab.test'; os = 'Windows Server 2022 Datacenter' }, [pscustomobject]@{ name = 'DC2.lab.test'; os = 'Windows Server 2022 Datacenter' }) })
+    sites   = @([pscustomobject]@{ name = 'Default-First-Site-Name'; subnets = @('10.0.0.0/24'); servers = @('DC1.lab.test', 'DC2.lab.test') })
+    time    = @([pscustomobject]@{ dc = 'DC1.lab.test'; is_pdc = $true; source = 'VM IC Time Synchronization Provider' },
+                [pscustomobject]@{ dc = 'DC2.lab.test'; is_pdc = $false; source = 'VM IC Time Synchronization Provider' })
+    native  = [pscustomobject]@{
+        dfsr_state = [pscustomobject]@{ available = $true; output = "Current DFSR global state: 'Eliminated'" }
+        dcdiag     = [pscustomobject]@{ available = $true; output = "There are warning or error events.`r`n ......................... DC1 failed test DFSREvent" } }
+    accounts = $null
+}
+$lf = @(Get-IdkAdFindings -Ad $lab -Now ([datetime]'2026-11-11'))
+$lids = ($lf | ForEach-Object { $_.id }) -join ','
+Check "Lab: PDC on Hyper-V host time is AD-005 ($lids)" (@($lf | Where-Object { $_.id -eq 'AD-005' -and $_.title -match 'Hyper-V' }).Count -eq 1)
+Check 'Lab: non-PDC on Hyper-V host time is AD-006' (@($lf | Where-Object { $_.id -eq 'AD-006' -and $_.title -match 'Hyper-V' }).Count -eq 1)
+Check 'Lab: dcdiag failed test is AD-012' (@($lf | Where-Object { $_.id -eq 'AD-012' -and $_.title -match 'DFSREvent' }).Count -eq 1)
+Check 'Lab: no false single-DC, FRS or functional-level findings' (-not ($lids -match 'AD-001|AD-003|AD-004'))
+Check 'Mode label names level 7 as Windows Server 2016' ((Get-IdkModeLabel 'Unknown' 7) -eq 'Windows Server 2016 (level 7)')
+
 # Report renders a failed-module banner.
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "idk-test-$([guid]::NewGuid().ToString('N'))"
 [void](New-Item -ItemType Directory -Path $tmp)

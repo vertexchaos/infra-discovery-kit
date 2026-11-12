@@ -15,6 +15,14 @@ $script:IdkOsEndOfSupport = [ordered]@{
     '2022' = [datetime]'2031-10-14'
 }
 
+# .NET Framework reports levels above 2012 R2 as "Unknown", so name them from the numeric level.
+$script:IdkModeNames = @{ 0 = 'Windows 2000'; 1 = 'Windows Server 2003 interim'; 2 = 'Windows Server 2003'; 3 = 'Windows Server 2008'; 4 = 'Windows Server 2008 R2'; 5 = 'Windows Server 2012'; 6 = 'Windows Server 2012 R2'; 7 = 'Windows Server 2016'; 10 = 'Windows Server 2025' }
+function Get-IdkModeLabel {
+    param($Mode, $Level)
+    if ($null -ne $Level -and $script:IdkModeNames.ContainsKey([int]$Level)) { return "$($script:IdkModeNames[[int]$Level]) (level $Level)" }
+    return "$Mode (level $Level)"
+}
+
 function Get-IdkAdFindings {
     param([Parameter(Mandatory)]$Ad, [datetime]$Now = (Get-Date))
     $findings = New-Object System.Collections.ArrayList
@@ -50,12 +58,12 @@ function Get-IdkAdFindings {
 
         # AD-003: functional levels (7 = Windows Server 2016)
         if ($null -ne $d.mode_level -and [int]$d.mode_level -lt 7) {
-            [void]$findings.Add((New-IdkFinding 'AD-003' 'Medium' "Domain $($d.name) functional level is below 2016" "Domain mode: $($d.mode) (level $($d.mode_level))." `
+            [void]$findings.Add((New-IdkFinding 'AD-003' 'Medium' "Domain $($d.name) functional level is below 2016" "Domain functional level: $(Get-IdkModeLabel $d.mode $d.mode_level)." `
                 'After all DCs run 2016 or later, raise the domain and then the forest functional level.'))
         }
     }
     if ($null -ne $Ad.forest.mode_level -and [int]$Ad.forest.mode_level -lt 7) {
-        [void]$findings.Add((New-IdkFinding 'AD-003' 'Medium' 'Forest functional level is below 2016' "Forest mode: $($Ad.forest.mode) (level $($Ad.forest.mode_level))." `
+        [void]$findings.Add((New-IdkFinding 'AD-003' 'Medium' 'Forest functional level is below 2016' "Forest functional level: $(Get-IdkModeLabel $Ad.forest.mode $Ad.forest.mode_level)." `
             'Raise the forest functional level once every domain is at 2016 or later.'))
     }
 
@@ -67,15 +75,37 @@ function Get-IdkAdFindings {
     }
 
     # AD-005 / AD-006: time sources
+    $vmicFix = 'On virtualized DCs, disable the Hyper-V time provider (HKLM\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\VMICTimeProvider, Enabled = 0; the boot-time correction still applies) so DCs follow the domain hierarchy.'
     foreach ($t in @($Ad.time)) {
         if (-not $t.source) { continue }
         $localClock = $t.source -match 'Local CMOS Clock|Free-running System Clock'
-        if ($t.is_pdc -and $localClock) {
-            [void]$findings.Add((New-IdkFinding 'AD-005' 'High' "PDC emulator $($t.dc) uses its local clock" "w32tm /query /source: $($t.source)" `
-                'Configure the PDC emulator alone to sync from a reliable source (NTP pool, or 169.254.169.123 in AWS). Leave all other machines on NT5DS.'))
-        } elseif (-not $t.is_pdc -and ($localClock -or $t.source -notmatch '\.')) {
+        $hostClock = $t.source -match 'VM IC Time Synchronization Provider'
+        if ($t.is_pdc) {
+            if ($localClock) {
+                [void]$findings.Add((New-IdkFinding 'AD-005' 'High' "PDC emulator $($t.dc) uses its local clock" "w32tm /query /source: $($t.source)" `
+                    'Configure the PDC emulator alone to sync from a reliable source (NTP pool, or 169.254.169.123 in AWS). Leave all other machines on NT5DS.'))
+            } elseif ($hostClock) {
+                [void]$findings.Add((New-IdkFinding 'AD-005' 'High' "PDC emulator $($t.dc) takes its time from the Hyper-V host" "w32tm /query /source: $($t.source)" `
+                    "The whole domain then follows the host's clock, and host drift or a restored checkpoint becomes domain-wide time skew. $vmicFix Then point the PDC emulator at an external NTP source."))
+            }
+        }
+        elseif ($hostClock) {
+            [void]$findings.Add((New-IdkFinding 'AD-006' 'Medium' "$($t.dc) takes its time from the Hyper-V host" "w32tm /query /source: $($t.source)" `
+                "$vmicFix Verify with w32tm /query /source: it should show another DC."))
+        }
+        elseif ($localClock -or $t.source -notmatch '\.') {
             [void]$findings.Add((New-IdkFinding 'AD-006' 'Medium' "$($t.dc) does not follow the domain time hierarchy" "w32tm /query /source: $($t.source)" `
                 'Reset non-PDC DCs to the domain hierarchy (NT5DS), then verify with w32tm /query /status.'))
+        }
+    }
+
+    # AD-012: dcdiag failed tests
+    $diag = $Ad.native.dcdiag
+    if ($diag -and $diag.available -and $diag.output) {
+        $failedTests = @([regex]::Matches($diag.output, 'failed test\s+(\S+)') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+        if ($failedTests.Count -gt 0) {
+            [void]$findings.Add((New-IdkFinding 'AD-012' 'Medium' "dcdiag reports failed tests: $($failedTests -join ', ')" "dcdiag /q: $(($diag.output -replace '\s+', ' ').Trim())" `
+                'Run dcdiag /v /test:<name> on the DC for detail, and check the related event log (DFS Replication for DFSREvent). Resolve before any DC change.'))
         }
     }
 
