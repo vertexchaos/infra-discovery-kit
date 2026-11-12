@@ -17,7 +17,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$version = '0.1.2'
+$version = '0.1.3'
 
 . (Join-Path $PSScriptRoot 'lib\Common.ps1')
 . (Join-Path $PSScriptRoot 'collectors\ActiveDirectory.ps1')
@@ -50,6 +50,9 @@ foreach ($module in $Modules) {
         $run.modules[$module] = [ordered]@{ status = 'failed'; duration_s = [math]::Round($timer.Elapsed.TotalSeconds, 1); errors = @([ordered]@{ step = 'module'; message = $_.Exception.Message }); data = $null }
     }
     Write-Host ("  {0} ({1}s, {2} errors)" -f $run.modules[$module].status, $run.modules[$module].duration_s, @($run.modules[$module].errors).Count)
+    foreach ($e in @($run.modules[$module].errors)) {
+        Write-Host ("    - {0}: {1}" -f $e.step, $e.message) -ForegroundColor Yellow
+    }
 }
 
 if (-not (Test-Path $OutputPath)) { [void](New-Item -ItemType Directory -Path $OutputPath) }

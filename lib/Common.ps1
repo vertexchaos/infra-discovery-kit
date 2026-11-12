@@ -34,7 +34,7 @@ function Invoke-IdkStep {
     param(
         [Parameter(Mandatory)][string]$Name,
         [Parameter(Mandatory)][scriptblock]$Script,
-        [Parameter(Mandatory)][System.Collections.ArrayList]$Errors
+        [Parameter(Mandatory)][AllowEmptyCollection()][System.Collections.ArrayList]$Errors
     )
     try { & $Script }
     catch {

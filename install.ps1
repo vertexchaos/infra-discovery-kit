@@ -4,17 +4,17 @@
 .DESCRIPTION
     Quick start (run in an elevated Windows PowerShell on a DC or domain-joined host):
 
-        irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.2/install.ps1 | iex
+        irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.3/install.ps1 | iex
 
     With options:
 
-        & ([scriptblock]::Create((irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.2/install.ps1))) -NoRun
+        & ([scriptblock]::Create((irm https://raw.githubusercontent.com/vertexchaos/infra-discovery-kit/v0.1.3/install.ps1))) -NoRun
 
     The kit itself is read-only. This bootstrap only writes to the destination folder (default %TEMP%)
     and sets the execution policy to Bypass for the current PowerShell process only.
 #>
 param(
-    [string]$Version = '0.1.2',
+    [string]$Version = '0.1.3',
     [string]$Destination = (Join-Path $env:TEMP "infra-discovery-kit-$Version"),
     [switch]$NoRun
 )

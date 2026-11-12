@@ -102,6 +102,12 @@ foreach ($f in $findings) { $counts[$f.severity]++ }
 $body = New-Object System.Text.StringBuilder
 $title = if ($adData) { "As-built: $($adData.forest.name)" } else { 'As-built report' }
 
+foreach ($m in $run.modules.PSObject.Properties) {
+    if ($m.Value.status -eq 'failed') {
+        $msgs = (@($m.Value.errors) | ForEach-Object { "$($_.step): $($_.message)" }) -join ' | '
+        [void]$body.Append("<div class=`"banner failed`">Module $(Enc $m.Name) failed, so this report has no data for it. Error: $(Enc $msgs)</div>")
+    }
+}
 if ($run.sample) {
     [void]$body.Append('<div class="banner">SAMPLE REPORT: fictional data for demonstration. Not a real environment.</div>')
 }
@@ -199,7 +205,7 @@ $css = @'
 @media (prefers-color-scheme: dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#a3a29b;--line:#3a3935;--card:#1f1f1d;--accent:#8ab4e0;--high:#f2867e;--med:#f0b35a;--low:#9cc488;--site:#1e2833;--dc:#262624}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1040px;margin:0 auto;padding:24px 16px 64px}
-.banner{background:var(--med);color:#fff;padding:8px 12px;border-radius:6px;font-weight:600;margin-bottom:16px}
+.banner{background:var(--med);color:#fff;padding:8px 12px;border-radius:6px;font-weight:600;margin-bottom:16px}.banner.failed{background:var(--high)}
 .kicker{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.06em}h1{margin:4px 0 4px;font-size:28px}
 .meta{color:var(--muted);margin:0 0 8px}h2{font-size:20px;border-bottom:1px solid var(--line);padding-bottom:6px;margin-top:36px}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
